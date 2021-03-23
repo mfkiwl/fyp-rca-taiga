@@ -1,5 +1,6 @@
 # FYP
-This is a fork of the Taiga core repositoty from [Taiga](https://gitlab.com/sfu-rcl/Taiga) 
+This is a fork of the Taiga core repository from [Taiga](https://gitlab.com/sfu-rcl/Taiga) to be used for my MEng EEE final year project which explores JIT Configuration of Reconfigurable Custom Instruction Hardware.
+
 
 The following documentation is a duplication of that given by SFU:
 # Documentation and Project Setup
