@@ -265,4 +265,9 @@ package taiga_types;
         taiga_trace_events_t events;
     } trace_outputs_t;
 
+    typedef struct packed{
+        logic [XLEN-1:0] rs1;
+        logic [XLEN-1:0] rs2;
+    } adder_inputs_t;
+
 endpackage

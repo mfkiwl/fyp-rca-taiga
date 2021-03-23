@@ -44,6 +44,9 @@ package taiga_config;
     ////////////////////////////////////////////////////
     //ISA Options
 
+    //Test adder
+    localparam USE_TESTADDER = 1;
+
     //Multiply and Divide Inclusion
     localparam USE_MUL = 1;
     localparam USE_DIV = 1;
@@ -183,15 +186,16 @@ package taiga_config;
 
     ////////////////////////////////////////////////////
     //Write-Back Unit IDs
-    localparam NUM_WB_UNITS = 2 + USE_MUL + USE_DIV;//ALU and LS
+    localparam NUM_WB_UNITS = 2 + USE_MUL + USE_DIV + USE_TESTADDER;//ALU and LS
     localparam NUM_UNITS = NUM_WB_UNITS + 2;//Branch and CSRs
 
     localparam ALU_UNIT_WB_ID = 0;
     localparam LS_UNIT_WB_ID = 1;
     localparam DIV_UNIT_WB_ID = LS_UNIT_WB_ID + USE_DIV;
     localparam MUL_UNIT_WB_ID = DIV_UNIT_WB_ID + USE_MUL;
+    localparam TESTADDER_UNIT_WB_ID = MUL_UNIT_WB_ID + USE_TESTADDER;
     //Non-writeback units
-    localparam BRANCH_UNIT_ID = MUL_UNIT_WB_ID + 1;
+    localparam BRANCH_UNIT_ID = TESTADDER_UNIT_WB_ID + 1;
     localparam GC_UNIT_ID = BRANCH_UNIT_ID + 1;
 
     ////////////////////////////////////////////////////

@@ -243,6 +243,10 @@ module taiga (
             div_unit div_unit_block (.*, .issue(unit_issue[DIV_UNIT_WB_ID]), .wb(unit_wb[DIV_UNIT_WB_ID]));
     endgenerate
 
+    generate if (USE_TESTADDER)
+        taiga_testAdder taiga_testAdder_block (.*, .issue(unit_issue[TESTADDER_UNIT_WB_ID]), .wb(unit_wb[TESTADDER_UNIT_WB_ID]));
+    endgenerate
+
     ////////////////////////////////////////////////////
     //End of Implementation
     ////////////////////////////////////////////////////

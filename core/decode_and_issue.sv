@@ -41,6 +41,7 @@ module decode_and_issue (
         output gc_inputs_t gc_inputs,
         output mul_inputs_t mul_inputs,
         output div_inputs_t div_inputs,
+        output adder_inputs_t adder_inputs,
 
         unit_issue_interface.decode unit_issue [NUM_UNITS-1:0],
         input logic potential_branch_exception,
@@ -144,7 +145,7 @@ module decode_and_issue (
     ////////////////////////////////////////////////////
     //Register File Support
     assign uses_rs1 = !(opcode_trim inside {LUI_T, AUIPC_T, JAL_T, FENCE_T} || csr_imm_op || environment_op);
-    assign uses_rs2 = opcode_trim inside {BRANCH_T, STORE_T, ARITH_T, AMO_T};
+    assign uses_rs2 = opcode_trim inside {BRANCH_T, STORE_T, ARITH_T, AMO_T, TESTADDER0_T};
     assign uses_rd = !(opcode_trim inside {BRANCH_T, STORE_T, FENCE_T} || environment_op);
 
     always_ff @(posedge clk) begin
@@ -185,6 +186,17 @@ module decode_and_issue (
 
     generate if (USE_DIV)
         assign unit_needed[DIV_UNIT_WB_ID] = mult_div_op && fn3[2];
+    endgenerate
+
+    //Writeback interface
+    generate if (USE_TESTADDER)
+        assign unit_needed[TESTADDER_UNIT_WB_ID] = (opcode_trim == TESTADDER0_T) & (fn3 == TADD_fn3) & (fn7 == TADD_fn7);
+    endgenerate
+
+    //decode interface
+    generate if (USE_TESTADDER)
+        adder_inputs.rs1 = rs_data[RS1];
+        adder_inputs.rs2 = rs_data[RS2];
     endgenerate
 
     always_ff @(posedge clk) begin
