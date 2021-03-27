@@ -80,7 +80,8 @@ package riscv_types;
     } rca_fn7_t;
 
     typedef enum logic [2:0] {
-        RCA_fn3 = 3'b010
+        USE_fn3 = 3'b000,
+        CONFIG_fn3 = 3'b001
     } rca_fn3_t;
 
     typedef enum logic [6:0] {
