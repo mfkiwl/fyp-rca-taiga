@@ -99,6 +99,9 @@ module decode_and_issue (
 
     logic [4:0] rs1_addr;
     logic [4:0] rs2_addr;
+    logic [4:0] rs3_addr;
+    logic [4:0] rs4_addr;
+    logic [4:0] rs5_addr;
     logic [4:0] rd_addr;
 
     logic csr_imm_op;
@@ -123,7 +126,11 @@ module decode_and_issue (
 
     logic rs1_conflict;
     logic rs2_conflict;
+    logic rs3_conflict;
+    logic rs4_conflict;
+    logic rs5_conflict;
 
+    //RCA Config Regs
     logic [$clog2(NUM_RCAS)-1:-0] rca_sel_r;
     logic [4:0] rca_src_reg_addrs [NUM_READ_PORTS];
     logic [4:0] rca_dest_reg_addrs [NUM_WRITE_PORTS];
@@ -133,6 +140,8 @@ module decode_and_issue (
     logic [$clog2(NUM_WRITE_PORTS)-1:0] dest_port_sel;
     logic src_dest_port;
     logic [4:0] reg_addr;
+
+    logic [19:0] rca_instr_imm;
 
     rca_config_regs rca_config_regs(.*);
 
@@ -153,6 +162,10 @@ module decode_and_issue (
     assign fn3 = decode.instruction[14:12];
     assign rs1_addr = rca_instr ?  rca_src_reg_addrs[0] : decode.instruction[19:15];
     assign rs2_addr = rca_instr ? rca_src_reg_addrs[1] : decode.instruction[24:20];
+    assign rs3_addr = rca_instr ?  rca_src_reg_addrs[2] : 5'd0;
+    assign rs4_addr = rca_instr ? rca_src_reg_addrs[3] : 5'd0;
+    assign rs5_addr = rca_instr ? rca_src_reg_addrs[4] : 5'd0;
+
 
     assign rd_addr = decode.instruction[11:7]; //TODO: change to use multiple RDs
 
@@ -175,7 +188,8 @@ module decode_and_issue (
     //reading from RCA config reg to use RCAs
 
     //extract which RCA should be used
-    assign rca_sel_r = decode.instruction[$clog2(NUM_RCAS)+6:7];
+    assign rca_instr_imm = rca_instr ? decode.instruction[31:12] : 19'd0;
+    assign rca_sel_r = rca_instr ? rca_instr_imm[$clog2(NUM_RCAS)-1:0] : 0;
 
     always_ff @(posedge clk) begin
         if (rst | gc_fetch_flush)
@@ -193,6 +207,9 @@ module decode_and_issue (
             issue.opcode <= opcode;
             issue.rs_addr[RS1] <= rs1_addr;
             issue.rs_addr[RS2] <= rs2_addr;
+            issue.rs_addr[RS3] <= rs3addr;
+            issue.rs_addr[RS4] <= rs4_addr;
+            issue.rs_addr[RS5] <= rs5_addr;
             issue.rd_addr <= rd_addr;
             issue.id <= decode.id;
             issue.uses_rs1 <= uses_rs1;
@@ -258,8 +275,11 @@ module decode_and_issue (
 
     assign rs1_conflict = rs_inuse[RS1] & rs_id_inuse[RS1] & issue.uses_rs1;
     assign rs2_conflict = rs_inuse[RS2] & rs_id_inuse[RS2] & issue.uses_rs2;
+    assign rs3_conflict = rs_inuse[RS3] & rs_id_inuse[RS3] & issue.rca_instr;
+    assign rs3_conflict = rs_inuse[RS4] & rs_id_inuse[RS4] & issue.rca_instr;
+    assign rs3_conflict = rs_inuse[RS5] & rs_id_inuse[RS5] & issue.rca_instr;
 
-    assign operands_ready = ~rs1_conflict & ~rs2_conflict;
+    assign operands_ready = ~rs1_conflict & ~rs2_conflict & ~rs3_conflict & ~rs4_conflict & ~rs5_conflict;
 
     //All units share the same operand ready logic except load-store which has an internal forwarding path
     always_comb begin

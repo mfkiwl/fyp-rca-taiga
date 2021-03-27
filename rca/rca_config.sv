@@ -4,6 +4,6 @@ package rca_config
     localparam NUM_WRITE_PORTS = 5;
 
 
-    //RCA Instructions will have bits 6:0 as opcode, rest of the bits as accelerator selector 31:7
+    //RCA Instructions will be of U-type with immediate specifying which accelerator to use (for now) TODO: change to R-type to allow RCA configuration
 
 endpackage
