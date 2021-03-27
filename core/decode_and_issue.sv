@@ -243,10 +243,9 @@ module decode_and_issue (
         assign rca_inputs.rs3 = rs_data[RS3];
         assign rca_inputs.rs4 = rs_data[RS4];
         assign rca_inputs.rs5 = rs_data[RS5];
-        assign rca_inputs.rca_sel = rca_use_instr ? fun7[$clog2(NUM_RCAS)-1:0] : 0;
+        assign rca_inputs.rca_sel = (opcode_trim == RCA_T) ? fun7[$clog2(NUM_RCAS)-1:0] : 0;
 
         assign rca_inputs.rca_config = rca_config_instr;
-        assign rca_inputs.rca_sel = rca_config_instr ? fun7[$clog2(NUM_RCAS)-1:0] : 0;
         assign rca_inputs.w_port_sel = rs_data[RS1][$clog2(NUM_READ_PORTS)-1:0];
         assign rca_inputs.w_src_dest_port = rs_data[RS1][$clog2(NUM_READ_PORTS)];
         assign rca_inputs.w_reg_addr = rs_data[RS2][5:0];
