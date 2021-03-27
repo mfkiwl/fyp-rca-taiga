@@ -8,7 +8,7 @@ module testAdder(
     output  carry
 );
 
-    {carry, sum} = a+b;
+    assign {carry, sum} = a+b;
     
 endmodule
 

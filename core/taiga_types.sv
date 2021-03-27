@@ -98,7 +98,7 @@ package taiga_types;
         logic stage_valid;
         logic addr_valid;
 
-        logic rca_instr;
+        logic rca_use_instr;
     } issue_packet_t;
 
     typedef struct packed{
@@ -275,7 +275,7 @@ package taiga_types;
 
     typedef struct packed{
         //Select between RCA use and RCA config
-        logic rca_config; //0 for use, 1 for config
+        logic rca_use_config; //0 for use, 1 for config
 
         //Interface for RCA use
         logic [XLEN-1:0] rs1;
@@ -293,8 +293,8 @@ package taiga_types;
 
     //RCA Config Outputs
     typedef struct packed{        
-        logic [4:0] rca_src_reg_addrs [NUM_READ_PORTS];
-        logic [4:0] rca_dest_reg_addrs [NUM_WRITE_PORTS]; 
+        logic [4:0] [NUM_READ_PORTS-1:0] rca_src_reg_addrs ;
+        logic [4:0] [NUM_WRITE_PORTS-1:0] rca_dest_reg_addrs; 
     } rca_config_t;
 
 endpackage

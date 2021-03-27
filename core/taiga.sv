@@ -68,7 +68,7 @@ module taiga (
     div_inputs_t div_inputs;
     gc_inputs_t gc_inputs;
     rca_inputs_t rca_inputs;
-    rca_config_t rca_config;
+    rca_config_t rca_config_regs_op;
 
     unit_issue_interface unit_issue [NUM_UNITS-1:0]();
     logic alu_issued;
@@ -243,10 +243,6 @@ module taiga (
     endgenerate
     generate if (USE_DIV)
             div_unit div_unit_block (.*, .issue(unit_issue[DIV_UNIT_WB_ID]), .wb(unit_wb[DIV_UNIT_WB_ID]));
-    endgenerate
-
-    generate if (USE_TESTADDER)
-        taiga_testAdder taiga_testAdder_block (.*, .issue(unit_issue[TESTADDER_UNIT_WB_ID]), .wb(unit_wb[TESTADDER_UNIT_WB_ID]));
     endgenerate
 
     generate if (USE_RCA)

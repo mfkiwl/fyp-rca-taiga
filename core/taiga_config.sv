@@ -20,9 +20,10 @@
  *             Eric Matthews <ematthew@sfu.ca>
  */
 
-package taiga_config;
-    import rca_config::*;
 
+package taiga_config;
+    
+    // import rca_config::*;
     ////////////////////////////////////////////////////
     //Vendor Selection
     localparam FPGA_VENDOR = "xilinx"; //xilinx or intel
@@ -46,7 +47,7 @@ package taiga_config;
     //ISA Options
 
     //Test adder
-    localparam USE_TESTADDER = 1;
+    localparam USE_TESTADDER = 0;
 
     //RCAs
     localparam USE_RCA = 1;
@@ -167,8 +168,8 @@ package taiga_config;
     ////////////////////////////////////////////////////
     //Number of commit ports
     localparam COMMIT_PORTS = 2; //min 2
-    localparam REGFILE_READ_PORTS = NUM_READ_PORTS; //min 2, for RS1 and RS2
-    typedef enum logic {
+    localparam REGFILE_READ_PORTS = 5; //min 2, for RS1 and RS2
+    typedef enum logic [$clog2(REGFILE_READ_PORTS)-1:0] {
         RS1 = 0,
         RS2 = 1,
         RS3 = 2,

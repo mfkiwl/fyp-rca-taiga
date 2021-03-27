@@ -1,4 +1,4 @@
-package rca_config
+package rca_config;
     localparam NUM_RCAS = 4;
     localparam NUM_READ_PORTS = 5;
     localparam NUM_WRITE_PORTS = 5;
