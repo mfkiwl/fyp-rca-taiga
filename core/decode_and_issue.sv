@@ -45,6 +45,8 @@ module decode_and_issue (
         output adder_inputs_t adder_inputs,
         output rca_inputs_t rca_inputs,
 
+        input rca_config_t rca_config,
+
         unit_issue_interface.decode unit_issue [NUM_UNITS-1:0],
         input logic potential_branch_exception,
         output logic alu_issued,
@@ -88,6 +90,7 @@ module decode_and_issue (
         );
 
     logic [2:0] fn3;
+    logic [6:0] fn7;
     logic [6:0] opcode;
     logic [4:0] opcode_trim;
 
@@ -95,7 +98,8 @@ module decode_and_issue (
     logic uses_rs2;
     logic uses_rd;
 
-    logic rca_instr;
+    logic rca_use_instr;
+    logic rca_config_instr;
 
     logic [4:0] rs1_addr;
     logic [4:0] rs2_addr;
@@ -130,21 +134,6 @@ module decode_and_issue (
     logic rs4_conflict;
     logic rs5_conflict;
 
-    //RCA Config Regs
-    logic [$clog2(NUM_RCAS)-1:-0] rca_sel_r;
-    logic [4:0] rca_src_reg_addrs [NUM_READ_PORTS];
-    logic [4:0] rca_dest_reg_addrs [NUM_WRITE_PORTS];
-
-    logic [$clog2(NUM_RCAS)-1:-0] rca_sel_w;
-    logic [$clog2(NUM_READ_PORTS)-1:0] src_port_sel;
-    logic [$clog2(NUM_WRITE_PORTS)-1:0] dest_port_sel;
-    logic src_dest_port;
-    logic [4:0] reg_addr;
-
-    logic [19:0] rca_instr_imm;
-
-    rca_config_regs rca_config_regs(.*);
-
     genvar i;
     ////////////////////////////////////////////////////
     //Implementation
@@ -160,11 +149,13 @@ module decode_and_issue (
     assign opcode = decode.instruction[6:0];
     assign opcode_trim = opcode[6:2];
     assign fn3 = decode.instruction[14:12];
-    assign rs1_addr = rca_instr ?  rca_src_reg_addrs[0] : decode.instruction[19:15];
-    assign rs2_addr = rca_instr ? rca_src_reg_addrs[1] : decode.instruction[24:20];
-    assign rs3_addr = rca_instr ?  rca_src_reg_addrs[2] : 5'd0;
-    assign rs4_addr = rca_instr ? rca_src_reg_addrs[3] : 5'd0;
-    assign rs5_addr = rca_instr ? rca_src_reg_addrs[4] : 5'd0;
+    assign fn7 = decode.instruction[31:25];
+
+    assign rs1_addr = rca_use_instr ?  rca_config.rca_src_reg_addrs[0] : decode.instruction[19:15];
+    assign rs2_addr = rca_use_instr ? rca_config.rca_src_reg_addrs[1] : decode.instruction[24:20];
+    assign rs3_addr = rca_use_instr ?  rca_config.rca_src_reg_addrs[2] : 5'd0;
+    assign rs4_addr = rca_use_instr ? rca_config.rca_src_reg_addrs[3] : 5'd0;
+    assign rs5_addr = rca_use_instr ? rca_config.rca_src_reg_addrs[4] : 5'd0;
 
 
     assign rd_addr = decode.instruction[11:7]; //TODO: change to use multiple RDs
@@ -176,20 +167,16 @@ module decode_and_issue (
     //Register File Support
     assign uses_rs1 = !(opcode_trim inside {LUI_T, AUIPC_T, JAL_T, FENCE_T} || csr_imm_op || environment_op);
     assign uses_rs2 = opcode_trim inside {BRANCH_T, STORE_T, ARITH_T, AMO_T, TESTADDER0_T, RCA_T};
-    assign uses_rd = !(opcode_trim inside {BRANCH_T, STORE_T, FENCE_T} || environment_op);
+    assign uses_rd = !(opcode_trim inside {BRANCH_T, STORE_T, FENCE_T} || environment_op || rca_config_instr);
 
     //rca instruction decode
     generate if (USE_RCA)
-        assign rca_instr = opcode_trim inside {RCA_T};
+        assign rca_use_instr = (opcode_trim == RCA_T) & (fn3 == USE_fn3);
+        assign rca_config_instr = (opcode_trim == RCA_T) & (fn3 == CONFIG_fn3);
     else
-        assign rca_instr = 1'b0;
+        assign rca_use_instr = 1'b0;
+        assign rca_config_instr = 1'b0;
     endgenerate
-
-    //reading from RCA config reg to use RCAs
-
-    //extract which RCA should be used
-    assign rca_instr_imm = rca_instr ? decode.instruction[31:12] : 19'd0;
-    assign rca_sel_r = rca_instr ? rca_instr_imm[$clog2(NUM_RCAS)-1:0] : 0;
 
     always_ff @(posedge clk) begin
         if (rst | gc_fetch_flush)
@@ -215,7 +202,7 @@ module decode_and_issue (
             issue.uses_rs1 <= uses_rs1;
             issue.uses_rs2 <= uses_rs2;
             issue.uses_rd <= uses_rd;
-            issue.rca_instr <= rca_instr;
+            issue.rca_use_instr <= rca_use_instr;
         end
     end
 
@@ -246,16 +233,23 @@ module decode_and_issue (
 
     //decode interface
     generate if (USE_TESTADDER)
-        adder_inputs.rs1 = rs_data[RS1];
-        adder_inputs.rs2 = rs_data[RS2];
+        assign adder_inputs.rs1 = rs_data[RS1];
+        assign adder_inputs.rs2 = rs_data[RS2];
     endgenerate
 
     generate if (USE_RCA)
-        rca_inputs.rs1 = rs_data[RS1];
-        rca_inputs.rs2 = rs_data[RS2];
-        rca_inputs.rs3 = rs_data[RS3];
-        rca_inputs.rs4 = rs_data[RS4];
-        rca_inputs.rs5 = rs_data[RS5];
+        assign rca_inputs.rs1 = rs_data[RS1];
+        assign rca_inputs.rs2 = rs_data[RS2];
+        assign rca_inputs.rs3 = rs_data[RS3];
+        assign rca_inputs.rs4 = rs_data[RS4];
+        assign rca_inputs.rs5 = rs_data[RS5];
+        assign rca_inputs.rca_sel = rca_use_instr ? fun7[$clog2(NUM_RCAS)-1:0] : 0;
+
+        assign rca_inputs.rca_config = rca_config_instr;
+        assign rca_inputs.rca_sel = rca_config_instr ? fun7[$clog2(NUM_RCAS)-1:0] : 0;
+        assign rca_inputs.w_port_sel = rs_data[RS1][$clog2(NUM_READ_PORTS)-1:0];
+        assign rca_inputs.w_src_dest_port = rs_data[RS1][$clog2(NUM_READ_PORTS)];
+        assign rca_inputs.w_reg_addr = rs_data[RS2][5:0];
     endgenerate
 
     always_ff @(posedge clk) begin
@@ -275,9 +269,9 @@ module decode_and_issue (
 
     assign rs1_conflict = rs_inuse[RS1] & rs_id_inuse[RS1] & issue.uses_rs1;
     assign rs2_conflict = rs_inuse[RS2] & rs_id_inuse[RS2] & issue.uses_rs2;
-    assign rs3_conflict = rs_inuse[RS3] & rs_id_inuse[RS3] & issue.rca_instr;
-    assign rs3_conflict = rs_inuse[RS4] & rs_id_inuse[RS4] & issue.rca_instr;
-    assign rs3_conflict = rs_inuse[RS5] & rs_id_inuse[RS5] & issue.rca_instr;
+    assign rs3_conflict = rs_inuse[RS3] & rs_id_inuse[RS3] & issue.rca_use_instr;
+    assign rs3_conflict = rs_inuse[RS4] & rs_id_inuse[RS4] & issue.rca_use_instr;
+    assign rs3_conflict = rs_inuse[RS5] & rs_id_inuse[RS5] & issue.rca_use_instr;
 
     assign operands_ready = ~rs1_conflict & ~rs2_conflict & ~rs3_conflict & ~rs4_conflict & ~rs5_conflict;
 
