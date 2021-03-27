@@ -1,7 +1,7 @@
 core/taiga_config.sv
 core/riscv_types.sv
 core/taiga_types.sv  
-../rca/rca_config.sv
+rca/rca_config.sv
 
 l2_arbiter/l2_config_and_types.sv 
 l2_arbiter/l2_interfaces.sv
