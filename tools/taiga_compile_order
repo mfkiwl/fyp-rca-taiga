@@ -1,6 +1,8 @@
 core/taiga_config.sv
 core/riscv_types.sv
 core/taiga_types.sv  
+../rca/rca_config.sv
+
 l2_arbiter/l2_config_and_types.sv 
 l2_arbiter/l2_interfaces.sv
 l2_arbiter/l2_external_interfaces.sv
@@ -100,6 +102,7 @@ core/toggle_memory.sv
 core/instruction_metadata_and_id_management.sv
 
 rca/test/testAdder.sv
+rca/rca_config_regs.sv
 
 core/taiga.sv
 

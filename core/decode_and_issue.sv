@@ -23,6 +23,7 @@
 import taiga_config::*;
 import riscv_types::*;
 import taiga_types::*;
+import rca_config::*;
 
 module decode_and_issue (
         input logic clk,
@@ -42,6 +43,7 @@ module decode_and_issue (
         output mul_inputs_t mul_inputs,
         output div_inputs_t div_inputs,
         output adder_inputs_t adder_inputs,
+        output rca_inputs_t rca_inputs,
 
         unit_issue_interface.decode unit_issue [NUM_UNITS-1:0],
         input logic potential_branch_exception,
@@ -93,6 +95,8 @@ module decode_and_issue (
     logic uses_rs2;
     logic uses_rd;
 
+    logic rca_instr;
+
     logic [4:0] rs1_addr;
     logic [4:0] rs2_addr;
     logic [4:0] rd_addr;
@@ -120,6 +124,18 @@ module decode_and_issue (
     logic rs1_conflict;
     logic rs2_conflict;
 
+    logic [$clog2(NUM_RCAS)-1:-0] rca_sel_r;
+    logic [4:0] rca_src_reg_addrs [NUM_READ_PORTS];
+    logic [4:0] rca_dest_reg_addrs [NUM_WRITE_PORTS];
+
+    logic [$clog2(NUM_RCAS)-1:-0] rca_sel_w;
+    logic [$clog2(NUM_READ_PORTS)-1:0] src_port_sel;
+    logic [$clog2(NUM_WRITE_PORTS)-1:0] dest_port_sel;
+    logic src_dest_port;
+    logic [4:0] reg_addr;
+
+    rca_config_regs rca_config_regs(.*);
+
     genvar i;
     ////////////////////////////////////////////////////
     //Implementation
@@ -135,9 +151,10 @@ module decode_and_issue (
     assign opcode = decode.instruction[6:0];
     assign opcode_trim = opcode[6:2];
     assign fn3 = decode.instruction[14:12];
-    assign rs1_addr = decode.instruction[19:15];
-    assign rs2_addr = decode.instruction[24:20];
-    assign rd_addr = decode.instruction[11:7];
+    assign rs1_addr = rca_instr ?  rca_src_reg_addrs[0] : decode.instruction[19:15];
+    assign rs2_addr = rca_instr ? rca_src_reg_addrs[1] : decode.instruction[24:20];
+
+    assign rd_addr = decode.instruction[11:7]; //TODO: change to use multiple RDs
 
     assign csr_imm_op = (opcode_trim == SYSTEM_T) && fn3[2];
     assign environment_op = (opcode_trim == SYSTEM_T) && (fn3 == 0);
@@ -145,8 +162,20 @@ module decode_and_issue (
     ////////////////////////////////////////////////////
     //Register File Support
     assign uses_rs1 = !(opcode_trim inside {LUI_T, AUIPC_T, JAL_T, FENCE_T} || csr_imm_op || environment_op);
-    assign uses_rs2 = opcode_trim inside {BRANCH_T, STORE_T, ARITH_T, AMO_T, TESTADDER0_T};
+    assign uses_rs2 = opcode_trim inside {BRANCH_T, STORE_T, ARITH_T, AMO_T, TESTADDER0_T, RCA_T};
     assign uses_rd = !(opcode_trim inside {BRANCH_T, STORE_T, FENCE_T} || environment_op);
+
+    //rca instruction decode
+    generate if (USE_RCA)
+        assign rca_instr = opcode_trim inside {RCA_T};
+    else
+        assign rca_instr = 1'b0;
+    endgenerate
+
+    //reading from RCA config reg to use RCAs
+
+    //extract which RCA should be used
+    assign rca_sel_r = decode.instruction[$clog2(NUM_RCAS)+6:7];
 
     always_ff @(posedge clk) begin
         if (rst | gc_fetch_flush)
@@ -169,6 +198,7 @@ module decode_and_issue (
             issue.uses_rs1 <= uses_rs1;
             issue.uses_rs2 <= uses_rs2;
             issue.uses_rd <= uses_rd;
+            issue.rca_instr <= rca_instr;
         end
     end
 
@@ -193,10 +223,22 @@ module decode_and_issue (
         assign unit_needed[TESTADDER_UNIT_WB_ID] = (opcode_trim == TESTADDER0_T) & (fn3 == TADD_fn3) & (fn7 == TADD_fn7);
     endgenerate
 
+    generate if (USE_RCA)
+        assign unit_needed[RCA_UNIT_WB_ID] = (opcode_trim == RCA_T); //not using fn3 and fn7
+    endgenerate
+
     //decode interface
     generate if (USE_TESTADDER)
         adder_inputs.rs1 = rs_data[RS1];
         adder_inputs.rs2 = rs_data[RS2];
+    endgenerate
+
+    generate if (USE_RCA)
+        rca_inputs.rs1 = rs_data[RS1];
+        rca_inputs.rs2 = rs_data[RS2];
+        rca_inputs.rs3 = rs_data[RS3];
+        rca_inputs.rs4 = rs_data[RS4];
+        rca_inputs.rs5 = rs_data[RS5];
     endgenerate
 
     always_ff @(posedge clk) begin

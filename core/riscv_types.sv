@@ -51,7 +51,8 @@ package riscv_types;
         FENCE = 7'b0001111,
         AMO = 7'b0101111,
         SYSTEM = 7'b1110011,
-        TESTADDER0 = 7'b0001011
+        TESTADDER0 = 7'b0001011,
+        RCA = 7'b0101011
         //end of RV32I
     } opcodes_t;
 
@@ -70,8 +71,17 @@ package riscv_types;
         SYSTEM_T = 5'b11100,
         //end of RV32I
         CUSTOM_T = 5'b11110,
-        TESTADDER0_T = 5'b00010
+        TESTADDER0_T = 5'b00010,
+        RCA_T = 5'b01010
     } opcodes_trimmed_t;
+
+    typedef enum logic [6:0] {
+        RCA_fn7 = 7'b1000000
+    } rca_fn7_t;
+
+    typedef enum logic [2:0] {
+        RCA_fn3 = 3'b010
+    } rca_fn3_t;
 
     typedef enum logic [6:0] {
         TADD_fn7 = 7'b1000000

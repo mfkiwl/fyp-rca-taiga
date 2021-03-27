@@ -1,12 +1,9 @@
 import taiga_config::*;
 import riscv_types::*;
 import taiga_types::*;
+import rca_config::*;
 
-module rca_config_regs #(
-    localparam NUM_RCAS = 4,
-    localparam NUM_READ_PORTS = 5,
-    localparam NUM_WRITE_PORTS = 5
-) (
+module rca_config_regs (
     input clk,
     input rst,
 

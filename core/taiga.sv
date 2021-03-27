@@ -247,6 +247,11 @@ module taiga (
         taiga_testAdder taiga_testAdder_block (.*, .issue(unit_issue[TESTADDER_UNIT_WB_ID]), .wb(unit_wb[TESTADDER_UNIT_WB_ID]));
     endgenerate
 
+    generate if (USE_RCA)
+        rca_unit rca (.*, .issue(unit_issue[RCA_UNIT_WB_ID]), .wb(unit_wb[RCA_UNIT_WB_ID]));
+    endgenerate
+
+
     ////////////////////////////////////////////////////
     //End of Implementation
     ////////////////////////////////////////////////////

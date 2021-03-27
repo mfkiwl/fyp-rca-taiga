@@ -21,6 +21,7 @@
  */
 
 package taiga_config;
+    import rca_config::*;
 
     ////////////////////////////////////////////////////
     //Vendor Selection
@@ -46,6 +47,9 @@ package taiga_config;
 
     //Test adder
     localparam USE_TESTADDER = 1;
+
+    //RCAs
+    localparam USE_RCA = 1;
 
     //Multiply and Divide Inclusion
     localparam USE_MUL = 1;
@@ -163,10 +167,13 @@ package taiga_config;
     ////////////////////////////////////////////////////
     //Number of commit ports
     localparam COMMIT_PORTS = 2; //min 2
-    localparam REGFILE_READ_PORTS = 2; //min 2, for RS1 and RS2
+    localparam REGFILE_READ_PORTS = NUM_READ_PORTS; //min 2, for RS1 and RS2
     typedef enum logic {
         RS1 = 0,
-        RS2 = 1
+        RS2 = 1,
+        RS3 = 2,
+        RS4 = 3,
+        RS5 = 4
     } rs1_index_t;
 
     ////////////////////////////////////////////////////
@@ -186,7 +193,7 @@ package taiga_config;
 
     ////////////////////////////////////////////////////
     //Write-Back Unit IDs
-    localparam NUM_WB_UNITS = 2 + USE_MUL + USE_DIV + USE_TESTADDER;//ALU and LS
+    localparam NUM_WB_UNITS = 2 + USE_MUL + USE_DIV + USE_TESTADDER + USE_RCA;//ALU and LS
     localparam NUM_UNITS = NUM_WB_UNITS + 2;//Branch and CSRs
 
     localparam ALU_UNIT_WB_ID = 0;
@@ -194,8 +201,9 @@ package taiga_config;
     localparam DIV_UNIT_WB_ID = LS_UNIT_WB_ID + USE_DIV;
     localparam MUL_UNIT_WB_ID = DIV_UNIT_WB_ID + USE_MUL;
     localparam TESTADDER_UNIT_WB_ID = MUL_UNIT_WB_ID + USE_TESTADDER;
+    localparam RCA_UNIT_WB_ID = TESTADDER_UNIT_WB_ID + USE_RCA;
     //Non-writeback units
-    localparam BRANCH_UNIT_ID = TESTADDER_UNIT_WB_ID + 1;
+    localparam BRANCH_UNIT_ID = RCA_UNIT_WB_ID + 1;
     localparam GC_UNIT_ID = BRANCH_UNIT_ID + 1;
 
     ////////////////////////////////////////////////////
