@@ -40,9 +40,9 @@ module rca_config_regs (
         end
     end
 
-    always @(posedge clk) begin
-        rca_src_reg_addrs <= src_reg_addrs[rca_sel];
-        rca_dest_reg_addrs <= dest_reg_addrs[rca_sel];
+    always_comb begin
+        rca_src_reg_addrs = src_reg_addrs[rca_sel];
+        rca_dest_reg_addrs = dest_reg_addrs[rca_sel];
     end    
     
 endmodule
