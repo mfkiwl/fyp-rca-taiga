@@ -275,7 +275,7 @@ package taiga_types;
 
     typedef struct packed{
         //Select between RCA use and RCA config
-        logic rca_use_config; //0 for use, 1 for config
+        logic rca_config_instr; //0 for use, 1 for config
 
         //Interface for RCA use
         logic [XLEN-1:0] rs1;
