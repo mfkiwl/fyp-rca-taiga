@@ -9,6 +9,8 @@ module rca_unit(
     input rca_inputs_t rca_inputs,
     output rca_config_t rca_config_regs_op
 );
+    logic rca_config_instr_r;
+    always_ff @(posedge clk) rca_config_instr_r <= rca_inputs.rca_config_instr;
 
     rca_config_regs rca_config_regfile(
         .clk(clk),
@@ -17,7 +19,7 @@ module rca_unit(
         .rca_src_reg_addrs(rca_config_regs_op.rca_src_reg_addrs),
         .rca_dest_reg_addrs(rca_config_regs_op.rca_dest_reg_addrs),
 
-        .wr_en(rca_inputs.rca_use_config && issue.new_request),
+        .wr_en(rca_config_instr_r && issue.new_request),
         .w_port_sel(rca_inputs.w_port_sel),
         .w_src_dest_port(rca_inputs.w_src_dest_port),
         .w_reg_addr(rca_inputs.w_reg_addr)
@@ -27,13 +29,21 @@ module rca_unit(
     assign issue.ready = 1'b1;
     
     always_ff @(posedge clk) begin
-        if (rca_inputs.rca_use_config && issue.new_request) begin
+        if (rca_inputs.rca_config_instr && issue.new_request) begin
             wb.done <= 1;
             wb.id <= issue.id;
+            wb.rd <= rca_inputs.rs1;
         end
-        else wb.done <= 0;
+        else if (~rca_inputs.rca_config_instr && issue.new_request) begin
+            wb.done <= 1;
+            wb.id <= issue.id;
+            wb.rd <= rca_inputs.rs1 + rca_inputs.rs2 + rca_inputs.rs3 + rca_inputs.rs4 + rca_inputs.rs5; 
+        end
+        else begin 
+            wb.done <= 0;
+            wb.rd <= 0;
+            wb.id <= 0;
+        end
     end
-
-    assign wb.rd = 0;
     
 endmodule
