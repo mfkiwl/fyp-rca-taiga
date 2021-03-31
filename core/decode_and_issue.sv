@@ -97,6 +97,7 @@ module decode_and_issue (
     logic uses_rs2;
     logic uses_rd;
 
+    logic rca_instr; 
     logic rca_use_instr;
     logic rca_config_instr;
 
@@ -149,18 +150,15 @@ module decode_and_issue (
     assign opcode_trim = opcode[6:2];
     assign fn3 = decode.instruction[14:12];
     assign fn7 = decode.instruction[31:25];
+    assign rd_addr = decode.instruction[11:7];
 
     assign rs1_addr = rca_use_instr ?  rca_config_regs_op.rca_src_reg_addrs[0] : decode.instruction[19:15];
     assign rs2_addr = rca_use_instr ? rca_config_regs_op.rca_src_reg_addrs[1] : decode.instruction[24:20];
     assign rs3_addr = rca_use_instr ?  rca_config_regs_op.rca_src_reg_addrs[2] : 5'd0;
     assign rs4_addr = rca_use_instr ? rca_config_regs_op.rca_src_reg_addrs[3] : 5'd0;
     assign rs5_addr = rca_use_instr ? rca_config_regs_op.rca_src_reg_addrs[4] : 5'd0;
-
-    always_comb begin
-        //TODO: change to use multiple RDs
-        if (rca_config_instr) rd_addr = rs1_addr; 
-        else rd_addr = decode.instruction[11:7];
-    end
+    
+    
 
     assign csr_imm_op = (opcode_trim == SYSTEM_T) && fn3[2];
     assign environment_op = (opcode_trim == SYSTEM_T) && (fn3 == 0);
@@ -169,9 +167,10 @@ module decode_and_issue (
     //Register File Support
     assign uses_rs1 = !(opcode_trim inside {LUI_T, AUIPC_T, JAL_T, FENCE_T} || csr_imm_op || environment_op);
     assign uses_rs2 = opcode_trim inside {BRANCH_T, STORE_T, ARITH_T, AMO_T, RCA_T};
-    assign uses_rd = !(opcode_trim inside {BRANCH_T, STORE_T, FENCE_T} || environment_op);
+    assign uses_rd = !(opcode_trim inside {BRANCH_T, STORE_T, FENCE_T} || environment_op || rca_instr);
 
     //rca instruction decode
+    assign rca_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) : 1'b0;
     assign rca_use_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == USE_fn3) : 1'b0;
     assign rca_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == CONFIG_fn3) : 1'b0;
             
@@ -201,6 +200,9 @@ module decode_and_issue (
             issue.uses_rs2 <= uses_rs2;
             issue.uses_rd <= uses_rd;
             issue.rca_use_instr <= rca_use_instr;
+            issue.rca_config_instr <= rca_config_instr;
+            for (int i = 0; i < NUM_WRITE_PORTS; i++)
+                issue.rca_rd_addrs[i] <= rca_use_instr ? rca_config_regs_op.rca_dest_reg_addrs[i]: 5'd0';
         end
     end
 

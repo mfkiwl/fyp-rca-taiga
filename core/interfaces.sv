@@ -80,6 +80,24 @@ interface unit_writeback_interface;
         );
 endinterface
 
+interface rca_writeback_interface;
+        logic ack;
+
+        id_t id;
+        logic done;
+        logic [XLEN-1:0][NUM_WRITE_PORTS-1:0] rd;
+
+        modport unit (
+            input ack,
+            output id, done, rd
+        );
+        modport wb (
+            output ack,
+            input id, done, rd
+        );
+endinterface
+
+
 interface ras_interface;
     logic push;
     logic pop;

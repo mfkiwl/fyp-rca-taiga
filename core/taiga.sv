@@ -149,6 +149,12 @@ module taiga (
     logic retired [COMMIT_PORTS];
     logic [4:0] retired_rd_addr [COMMIT_PORTS];
     id_t id_for_rd [COMMIT_PORTS];
+    //RCA WB
+    id_t rca_id_retiring,
+    logic rca_retired,
+
+    logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS],
+    id_t rca_id_for_rds,
 
     //Trace Interface Signals
     logic tr_operand_stall;

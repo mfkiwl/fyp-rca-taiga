@@ -76,6 +76,13 @@ module instruction_metadata_and_id_management
         input logic retired [COMMIT_PORTS],
         output logic [4:0] retired_rd_addr [COMMIT_PORTS],
         output id_t id_for_rd [COMMIT_PORTS],
+
+        //RCA WB
+        input id_t rca_id_retiring,
+        input logic rca_retired,
+        output logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS],
+        output id_t rca_id_for_rds,
+
         //Exception
         output logic [31:0] exception_pc
 
@@ -111,10 +118,18 @@ module instruction_metadata_and_id_management
     logic [COMMIT_PORTS-1:0] retired_status;
     logic [COMMIT_PORTS-1:0] retired_status_rs [REGFILE_READ_PORTS];
 
+    logic rca_retired_status;
+    logic rca_retired_status_rs [REGFILE_READ_PORTS];
+
     logic [$clog2(MAX_COMPLETE_COUNT)-1:0] complete_count;
 
     //Writes to register file
     id_t rd_to_id_table [32];
+
+    //RCA ID and rd tables
+    logic id_to_rca_instr_table [MAX_IDS];
+    logic [4:0] rca_id_to_rd_addr [NUM_WRITE_PORTS][MAX_IDS]; //only valid when id_to_rca_instr_table entry is 1
+
     genvar i;
     ////////////////////////////////////////////////////
     //Implementation
@@ -142,7 +157,7 @@ module instruction_metadata_and_id_management
     //rd table
     always_ff @ (posedge clk) begin
         if (fetch_complete)
-            rd_addr_table[fetch_id] <= fetch_instruction[11:7];
+            rd_addr_table[fetch_id] <= fetch_instruction[11:7]; //bypass this for RCA
     end
 
     //valid fetched address table
@@ -155,10 +170,28 @@ module instruction_metadata_and_id_management
     //Operand inuse determination
     initial rd_to_id_table = '{default: 0};
     always_ff @ (posedge clk) begin
-        if (instruction_issued & issue.uses_rd)//tracks most recently issued instruction that writes to the register file
+        if (instruction_issued & (issue.rca_config_instr | issue.rca_use_instr) begin
+            for(int i = 0; i < NUM_WRITE_PORTS; i++)
+                rd_to_id_table[issue.rca_rd_addrs[i]] <= issue.id;
+        end
+        else if (instruction_issued & issue.uses_rd)//tracks most recently issued instruction that writes to the register file
             rd_to_id_table[issue.rd_addr] <= issue.id;
     end
 
+    //RCA ID tracking
+    initial id_to_rca_instr_table = '{default: 0};
+    always_ff @(posedge clk) begin
+        id_to_rca_instr_table[issue.id] <= issue.rca_use_instr | issue.rca_config_instr; //use for bypassing rd_addr_table
+    end
+
+    initial rca_id_to_rd_addr = '{default:0};
+    always_ff @(posedge clk) begin
+        if (issue.rca_use_instr | issue.rca_config_instr) begin
+            for(int i = 0; i < NUM_WRITE_PORTS; i++) begin
+                rca_id_to_rd_addr[issue.id][i] <= issue.rca_rd_addrs[i];
+            end
+        end
+    end
     ////////////////////////////////////////////////////
     //ID Management
 
@@ -229,7 +262,7 @@ module instruction_metadata_and_id_management
     generate for (i = 0; i < REGFILE_READ_PORTS; i++) begin
         toggle_memory issued_toggle_mem_rs (
             .clk, .rst,
-            .toggle((gc_init_clear & rs_id_inuse[i]) | (instruction_issued & issue.uses_rd)),
+            .toggle((gc_init_clear & rs_id_inuse[i]) | (instruction_issued & (issue.uses_rd | issue.rca_use_instr | issue.rca_config_instr))),
             .toggle_id(gc_init_clear ? clear_index : issue.id),
             .read_id(rs_id[i]),
             .read_data(issued_status_rs[i])
@@ -291,6 +324,27 @@ module instruction_metadata_and_id_management
         end
     end endgenerate
 
+    //One memory for RCA Commit port
+    toggle_memory rca_retired_toggle_mem (
+            .clk, .rst,
+            .toggle(rca_retired),
+            .toggle_id(rca_id_retiring),
+            .read_id(pc_id_next),
+            .read_data(rca_retired_status)
+        );
+    
+    generate
+        for (j = 0; j < REGFILE_READ_PORTS; j++) begin
+            toggle_memory retired_toggle_mem_rs (
+                .clk, .rst,
+                .toggle(rca_retired),
+                .toggle_id(rca_id_retiring),
+                .read_id(rs_id[j]),
+                .read_data(rca_retired_status_rs[j])
+            );
+        end
+    endgenerate
+
     //Computed one cycle in advance using pc_id_next
     logic id_not_in_decode_issue;
     logic id_not_inflight;
@@ -300,7 +354,8 @@ module instruction_metadata_and_id_management
             branch_complete_status ^
             store_complete_status ^
             system_op_or_exception_complete_status ^
-            (^retired_status)
+            (^retired_status) ^
+            rca_retired_status
         );
 
     ////////////////////////////////////////////////////
@@ -313,7 +368,8 @@ module instruction_metadata_and_id_management
             rs_id_inuse[i] = (
                 issued_status_rs[i] ^
                 exception_with_rd_complete_status_rs[i] ^
-                (^retired_status_rs[i])
+                (^retired_status_rs[i]) ^
+                rca_retired_status_rs[i]
             );
         end
     end
@@ -331,6 +387,7 @@ module instruction_metadata_and_id_management
         for (int i = 0; i < COMMIT_PORTS; i++) begin
             complete_count  += MCC_W'(retired[i]);
         end
+        complete_count += MCC_W'(rca_retired);
     end
     always_ff @ (posedge clk) begin
         retire_inc <= complete_count;
@@ -350,7 +407,13 @@ module instruction_metadata_and_id_management
     always_comb begin
         for (int i = 0; i < REGFILE_READ_PORTS; i++) begin
             rs_id[i] = gc_init_clear ? clear_index : rd_to_id_table[issue.rs_addr[i]];
-            rs_inuse[i] = (|issue.rs_addr[i]) & (issue.rs_addr[i] == rd_addr_table[rs_id[i]]);
+            if(id_to_rca_instr_table[rs_id[i]]) begin
+                rs_inuse[i] = 0;
+                for (int j = 0; j < NUM_WRITE_PORTS; j++)
+                    rs_inuse[i] = rs_inuse[i] | (rca_id_to_rd_addr[rs_id[i]][j] == issue.rs_addr[i]);
+            end
+            else
+                rs_inuse[i] = (|issue.rs_addr[i]) & (issue.rs_addr[i] == rd_addr_table[rs_id[i]]);
         end
     end
 
@@ -367,6 +430,17 @@ module instruction_metadata_and_id_management
         end
     end
 
+    //RCA Writeback 
+    always_comb begin
+        for(int i = 0; i < NUM_WRITE_PORTS; i++)
+            rca_retired_rd_addrs[i] = rca_id_to_rd_addr[rca_id_retiring];
+    end
+
+    always_comb begin
+        rca_id_for_rds = '{default: 1}
+        for(int i = 0; i < NUM_WRITE_PORTS; i++)
+            rca_id_for_rds = rca_id_for_rds & rd_to_id_table[rca_retired_rd_addrs[i]]; //all IDs should be the same and the result should be the same due to idempotence
+    end
     //Exception Support
      generate if (ENABLE_M_MODE) begin
          assign exception_pc = pc_table[system_op_or_exception_id];

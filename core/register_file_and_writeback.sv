@@ -35,11 +35,22 @@ module register_file_and_writeback
         //ID Metadata
         output id_t ids_retiring [COMMIT_PORTS],
         output logic retired [COMMIT_PORTS],
+
+        output id_t rca_id_retiring,
+        output logic rca_retired,
+
+
         input logic [4:0] retired_rd_addr [COMMIT_PORTS],
         input id_t id_for_rd [COMMIT_PORTS],
+
+        input logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS],
+        input id_t rca_id_for_rds,
+
         //Writeback
         unit_writeback_interface.wb unit_wb[NUM_WB_UNITS],
         writeback_store_interface.wb wb_store,
+
+        rca_writeback_interface.wb rca_wb,
 
         //Trace signals
         output logic tr_rs1_forwarding_needed,
@@ -49,7 +60,7 @@ module register_file_and_writeback
 
     //Register File
     typedef logic [XLEN-1:0] register_file_t [32];
-    register_file_t register_file [COMMIT_PORTS];
+    register_file_t register_file [COMMIT_PORTS]; //AV:name of this variable is same as name of register file module
     logic [LOG2_COMMIT_PORTS-1:0] rs_sel [REGFILE_READ_PORTS];
 
     //Writeback
@@ -67,6 +78,19 @@ module register_file_and_writeback
     typedef logic [31:0] rs_data_set_t [REGFILE_READ_PORTS];
     rs_data_set_t rs_data_set [COMMIT_PORTS];
 
+    //RCA Register File
+    logic [$clog2(NUM_WRITE_PORTS)-1:0] rca_rs_sel [REGFILE_READ_PORTS];
+
+    //RCA Commit Logic
+    logic rca_unit_ack;
+    logic rca_unit_instr_id;
+    logic rca_unit_done;
+    logic [XLEN-1:0] rca_unit_rds [NUM_WRITE_PORTS];
+    logic [XLEN-1:0] rca_retiring_data [NUM_WRITE_PORTS];
+
+    rs_data_set_t rca_rs_data_set [COMMIT_PORTS];
+
+
     genvar i, j;
     ////////////////////////////////////////////////////
     //Implementation
@@ -76,6 +100,10 @@ module register_file_and_writeback
         assign unit_done[i] = unit_wb[i].done;
         assign unit_wb[i].ack = unit_ack[i];
     end endgenerate
+
+    assign rca_unit_instr_id = rca_wb.id;
+    assign rca_unit_done = rca_wb.done;
+    assign rca_wb.ack = rca_unit_ack;
 
     //As units are selected for commit ports based on their unit ID,
     //for each additional commit port one unit can be skipped for the commit mux
@@ -120,6 +148,20 @@ module register_file_and_writeback
         //if (alu_selected) retired[0] &= alu_issued;
     end
 
+    //RCA Unit Ack logic
+    always_comb begin
+        rca_unit_ack = 0;
+        rca_retired = 0;
+
+        if(rca_unit_done & ~rca_unit_ack & ~rca_retired) begin
+            rca_unit_ack = 1;
+            rca_retired = 1;             
+        end
+
+        rca_id_retiring = rca_unit_instr_id;
+        rca_retiring_data = rca_unit_rds;
+    end
+
     ////////////////////////////////////////////////////
     //Register Files
     //Implemented in seperate module as there is not universal tool support for inferring
@@ -132,6 +174,18 @@ module register_file_and_writeback
             .commit(update_lvt[i] & (|retired_rd_addr[i])),
             .read_addr(issue.rs_addr),
             .data(rs_data_set[i])
+        );
+    end endgenerate
+
+    //Additional Register files for RCA write ports
+    generate for (i = 0; i < NUM_WRITE_PORTS; i++) begin
+        register_file #(.NUM_READ_PORTS(REGFILE_READ_PORTS)) register_file_blocks (
+            .clk, .rst,
+            .rd_addr(rca_retired_rd_addrs[i]),
+            .new_data(rca_retiring_data[i]),
+            .commit(rca_update_lvt[i] & (|rca_retired_rd_addrs[i])),
+            .read_addr(issue.rs_addr),
+            .data(rca_rs_data_set[i])
         );
     end endgenerate
 
@@ -157,14 +211,60 @@ module register_file_and_writeback
         .rd_retired(update_lvt)
     );
 
+    //LVTs for additional RCA Write Ports
+    logic rca_update_lvt [NUM_WRITE_PORTS];
+    always_comb begin
+        for(int i = 0; i < NUM_READ_PORTS; i++) 
+            rca_update_lvt[i] = rca_retired & (rca_id_for_rds == rca_id_retiring) & ~(retired[0] & retired_rd_addr[0] == rca_retired_rd_addrs[i]);
+    end
+
+    regfile_bank_sel #(.WRITE_PORTS(NUM_WRITE_PORTS), .LOG2_WRITE_PORTS($clog2(NUM_WRITE_PORTS))) rca_regfile_lvt (
+        .clk, .rst,
+        .rs_addr(issue.rs_addr),
+        .rs_sel(rca_rs_sel),
+        .rd_addr(rca_retired_rd_addrs),
+        .rd_retired(rca_update_lvt)
+    );
+
+    //Separate LVT to select between RCA Reg file and normal reg file
+    localparam TOTAL_WRITE_PORTS = COMMIT_PORTS + NUM_WRITE_PORTS;
+    logic [4:0] all_retired_rd_addrs [TOTAL_WRITE_PORTS]; 
+    logic all_update_lvts [TOTAL_WRITE_PORTS]
+
+
+    assign all_retired_rd_addrs[COMMIT_PORTS-1:0] = retired_rd_addr;
+    assign all_retired_rd_addrs[TOTAL_WRITE_PORTS-1:COMMIT_PORTS] = rca_retired_rd_addrs;
+
+    assign all_update_lvts[COMMIT_PORTS-1:0] = update_lvt;
+    assign all_update_lvts[TOTAL_WRITE_PORTS-1:COMMIT_PORTS] = rca_update_lvt;
+
+    logic [$clog2(TOTAL_WRITE_PORTS)-1:0] norm_rca_sel [REGFILE_READ_PORTS];
+    regfile_bank_sel #(.WRITE_PORTS(TOTAL_WRITE_PORTS), .LOG2_WRITE_PORTS($clog2(TOTAL_WRITE_PORTS))) norm_rca_lvt
+    (
+        .clk, .rst,
+        .rs_addr(issue.rs_addr),
+        .rs_sel(norm_rca_sel),
+        .rd_addr(all_retired_rd_addrs),
+        .rd_retired(all_update_lvts)
+    );
+
+    logic norm_rca_regfile_sel [REGFILE_READ_PORTS]; //0 if normal register file should be used, 1 if RCA register file should be used
+    always_comb begin
+        for(int i = 0; i < REGFILE_READ_PORTS; i++) begin
+            if(norm_rca_sel[i] < $clog2(TOTAL_WRITE_PORTS)'(COMMIT_PORTS)) norm_rca_regfile_sel[i] = 0;
+            else norm_rca_regfile_sel[i] = 1;
+        end
+    end
+
     ////////////////////////////////////////////////////
     //Register File Muxing
     always_comb begin
         for (int i = 0; i < REGFILE_READ_PORTS; i++) begin
-            rs_data[i] = rs_data_set[rs_sel[i]][i];
+            rs_data[i] = norm_rca_regfile_sel ? rca_rs_data_set[rca_rs_sel[i]][i] : rs_data_set[rs_sel[i]][i];
         end
     end
 
+    //RCA unit will handle Load/Stores internally => no changes made to this 
     ////////////////////////////////////////////////////
     //Store Forwarding Support
     logic [31:0] commit_regs [COMMIT_PORTS-1];
