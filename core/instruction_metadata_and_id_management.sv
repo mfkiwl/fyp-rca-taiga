@@ -128,7 +128,7 @@ module instruction_metadata_and_id_management
 
     //RCA ID and rd tables
     logic id_to_rca_instr_table [MAX_IDS];
-    logic [4:0] rca_id_to_rd_addr [NUM_WRITE_PORTS][MAX_IDS]; //only valid when id_to_rca_instr_table entry is 1
+    logic [4:0][NUM_WRITE_PORTS-1:0] rca_id_to_rd_addr [MAX_IDS]; //only valid when id_to_rca_instr_table entry is 1
 
     genvar i;
     ////////////////////////////////////////////////////
@@ -170,7 +170,7 @@ module instruction_metadata_and_id_management
     //Operand inuse determination
     initial rd_to_id_table = '{default: 0};
     always_ff @ (posedge clk) begin
-        if (instruction_issued & (issue.rca_config_instr | issue.rca_use_instr) begin
+        if (instruction_issued & (issue.rca_config_instr | issue.rca_use_instr)) begin
             for(int i = 0; i < NUM_WRITE_PORTS; i++)
                 rd_to_id_table[issue.rca_rd_addrs[i]] <= issue.id;
         end
@@ -184,7 +184,12 @@ module instruction_metadata_and_id_management
         id_to_rca_instr_table[issue.id] <= issue.rca_use_instr | issue.rca_config_instr; //use for bypassing rd_addr_table
     end
 
-    initial rca_id_to_rd_addr = '{default:0};
+    initial begin
+        for(int i = 0; i < MAX_IDS; i++) begin
+            for(int j = 0; j < NUM_WRITE_PORTS; j++)
+                rca_id_to_rd_addr[i][j] = 0;
+        end
+    end 
     always_ff @(posedge clk) begin
         if (issue.rca_use_instr | issue.rca_config_instr) begin
             for(int i = 0; i < NUM_WRITE_PORTS; i++) begin
@@ -410,7 +415,7 @@ module instruction_metadata_and_id_management
             if(id_to_rca_instr_table[rs_id[i]]) begin
                 rs_inuse[i] = 0;
                 for (int j = 0; j < NUM_WRITE_PORTS; j++)
-                    rs_inuse[i] = rs_inuse[i] | (rca_id_to_rd_addr[rs_id[i]][j] == issue.rs_addr[i]);
+                    rs_inuse[i] = rs_inuse[i] | ((|issue.rs_addr[i]) & (rca_id_to_rd_addr[rs_id[i]][j] == issue.rs_addr[i]));
             end
             else
                 rs_inuse[i] = (|issue.rs_addr[i]) & (issue.rs_addr[i] == rd_addr_table[rs_id[i]]);
@@ -433,11 +438,11 @@ module instruction_metadata_and_id_management
     //RCA Writeback 
     always_comb begin
         for(int i = 0; i < NUM_WRITE_PORTS; i++)
-            rca_retired_rd_addrs[i] = rca_id_to_rd_addr[rca_id_retiring];
+            rca_retired_rd_addrs[i] = rca_id_to_rd_addr[rca_id_retiring][i];
     end
 
     always_comb begin
-        rca_id_for_rds = '{default: 1}
+        rca_id_for_rds = '{default: 1};
         for(int i = 0; i < NUM_WRITE_PORTS; i++)
             rca_id_for_rds = rca_id_for_rds & rd_to_id_table[rca_retired_rd_addrs[i]]; //all IDs should be the same and the result should be the same due to idempotence
     end

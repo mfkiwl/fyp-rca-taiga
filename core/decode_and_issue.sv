@@ -202,7 +202,7 @@ module decode_and_issue (
             issue.rca_use_instr <= rca_use_instr;
             issue.rca_config_instr <= rca_config_instr;
             for (int i = 0; i < NUM_WRITE_PORTS; i++)
-                issue.rca_rd_addrs[i] <= rca_use_instr ? rca_config_regs_op.rca_dest_reg_addrs[i]: 5'd0';
+                issue.rca_rd_addrs[i] <= rca_use_instr ? rca_config_regs_op.rca_dest_reg_addrs[i]: 5'd0;
         end
     end
 

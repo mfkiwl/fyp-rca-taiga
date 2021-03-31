@@ -24,6 +24,7 @@ import taiga_config::*;
 import riscv_types::*;
 import taiga_types::*;
 import l2_config_and_types::*;
+import rca_config::*;
 
 interface branch_predictor_interface;
     //Fetch signals
@@ -85,8 +86,7 @@ interface rca_writeback_interface;
 
         id_t id;
         logic done;
-        logic [XLEN-1:0][NUM_WRITE_PORTS-1:0] rd;
-
+        logic [XLEN-1:0] rd [NUM_WRITE_PORTS];
         modport unit (
             input ack,
             output id, done, rd

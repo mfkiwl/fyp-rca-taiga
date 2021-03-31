@@ -150,11 +150,13 @@ module taiga (
     logic [4:0] retired_rd_addr [COMMIT_PORTS];
     id_t id_for_rd [COMMIT_PORTS];
     //RCA WB
-    id_t rca_id_retiring,
-    logic rca_retired,
+    id_t rca_id_retiring;
+    logic rca_retired;
 
-    logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS],
-    id_t rca_id_for_rds,
+    logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS];
+    id_t rca_id_for_rds;
+
+    rca_writeback_interface rca_wb;
 
     //Trace Interface Signals
     logic tr_operand_stall;
@@ -252,7 +254,7 @@ module taiga (
     endgenerate
 
     generate if (USE_RCA)
-        rca_unit rca (.*, .issue(unit_issue[RCA_UNIT_WB_ID]), .wb(unit_wb[RCA_UNIT_WB_ID]));
+        rca_unit rca (.*, .issue(unit_issue[RCA_UNIT_WB_ID]));
     endgenerate
 
 

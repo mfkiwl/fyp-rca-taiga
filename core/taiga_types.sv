@@ -100,7 +100,7 @@ package taiga_types;
 
         logic rca_use_instr;
         logic rca_config_instr;
-        logic [4:0] rca_rd_addrs [NUM_WRITE_PORTS];
+        logic [4:0][NUM_WRITE_PORTS-1:0] rca_rd_addrs ;
     } issue_packet_t;
 
     typedef struct packed{

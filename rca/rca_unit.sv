@@ -45,7 +45,7 @@ module rca_unit(
             // wb.id <= issue.id;
             // wb.rd <= rca_inputs.rs1 + rca_inputs.rs2 + rca_inputs.rs3 + rca_inputs.rs4 + rca_inputs.rs5; 
 
-            rca_wb.done <= 1
+            rca_wb.done <= 1;
             rca_wb.id <= issue.id;
             //Reverse input register order - just for testing
             rca_wb.rd[0] <= rca_inputs.rs5;

@@ -83,12 +83,12 @@ module register_file_and_writeback
 
     //RCA Commit Logic
     logic rca_unit_ack;
-    logic rca_unit_instr_id;
+    id_t rca_unit_instr_id;
     logic rca_unit_done;
     logic [XLEN-1:0] rca_unit_rds [NUM_WRITE_PORTS];
     logic [XLEN-1:0] rca_retiring_data [NUM_WRITE_PORTS];
 
-    rs_data_set_t rca_rs_data_set [COMMIT_PORTS];
+    rs_data_set_t rca_rs_data_set [NUM_WRITE_PORTS];
 
 
     genvar i, j;
@@ -114,6 +114,10 @@ module register_file_and_writeback
         end
     end endgenerate
 
+    //RCA assign rds to retiring data
+    generate for (i = 0; i < NUM_WRITE_PORTS; i++) begin
+        assign rca_unit_rds[i] = rca_wb.rd[i];
+    end endgenerate
 
     ////////////////////////////////////////////////////
     //Unit select for register file
@@ -179,7 +183,7 @@ module register_file_and_writeback
 
     //Additional Register files for RCA write ports
     generate for (i = 0; i < NUM_WRITE_PORTS; i++) begin
-        register_file #(.NUM_READ_PORTS(REGFILE_READ_PORTS)) register_file_blocks (
+        register_file #(.NUM_READ_PORTS(REGFILE_READ_PORTS)) register_file_blocks_rca (
             .clk, .rst,
             .rd_addr(rca_retired_rd_addrs[i]),
             .new_data(rca_retiring_data[i]),
@@ -214,7 +218,7 @@ module register_file_and_writeback
     //LVTs for additional RCA Write Ports
     logic rca_update_lvt [NUM_WRITE_PORTS];
     always_comb begin
-        for(int i = 0; i < NUM_READ_PORTS; i++) 
+        for(int i = 0; i < NUM_WRITE_PORTS; i++) 
             rca_update_lvt[i] = rca_retired & (rca_id_for_rds == rca_id_retiring) & ~(retired[0] & retired_rd_addr[0] == rca_retired_rd_addrs[i]);
     end
 
@@ -229,14 +233,27 @@ module register_file_and_writeback
     //Separate LVT to select between RCA Reg file and normal reg file
     localparam TOTAL_WRITE_PORTS = COMMIT_PORTS + NUM_WRITE_PORTS;
     logic [4:0] all_retired_rd_addrs [TOTAL_WRITE_PORTS]; 
-    logic all_update_lvts [TOTAL_WRITE_PORTS]
+    logic all_update_lvts [TOTAL_WRITE_PORTS];
 
+    always_comb begin
+        for(int i = 0; i < COMMIT_PORTS; i++)
+            all_retired_rd_addrs[i] = retired_rd_addr[i];
+    end
 
-    assign all_retired_rd_addrs[COMMIT_PORTS-1:0] = retired_rd_addr;
-    assign all_retired_rd_addrs[TOTAL_WRITE_PORTS-1:COMMIT_PORTS] = rca_retired_rd_addrs;
+    always_comb begin
+        for(int i = COMMIT_PORTS; i < TOTAL_WRITE_PORTS; i++)
+            all_retired_rd_addrs[i] = rca_retired_rd_addrs[i - COMMIT_PORTS];
+    end
 
-    assign all_update_lvts[COMMIT_PORTS-1:0] = update_lvt;
-    assign all_update_lvts[TOTAL_WRITE_PORTS-1:COMMIT_PORTS] = rca_update_lvt;
+    always_comb begin
+        for(int i = 0; i < COMMIT_PORTS; i++)
+            all_update_lvts[i] = update_lvt[i];
+    end
+
+    always_comb begin
+        for(int i = COMMIT_PORTS; i < TOTAL_WRITE_PORTS; i++)
+            all_update_lvts[i] = rca_update_lvt[i - COMMIT_PORTS];
+    end
 
     logic [$clog2(TOTAL_WRITE_PORTS)-1:0] norm_rca_sel [REGFILE_READ_PORTS];
     regfile_bank_sel #(.WRITE_PORTS(TOTAL_WRITE_PORTS), .LOG2_WRITE_PORTS($clog2(TOTAL_WRITE_PORTS))) norm_rca_lvt
@@ -260,7 +277,7 @@ module register_file_and_writeback
     //Register File Muxing
     always_comb begin
         for (int i = 0; i < REGFILE_READ_PORTS; i++) begin
-            rs_data[i] = norm_rca_regfile_sel ? rca_rs_data_set[rca_rs_sel[i]][i] : rs_data_set[rs_sel[i]][i];
+            rs_data[i] = (norm_rca_regfile_sel[i] == 1'b1) ? rca_rs_data_set[rca_rs_sel[i]][i] : rs_data_set[rs_sel[i]][i];
         end
     end
 
