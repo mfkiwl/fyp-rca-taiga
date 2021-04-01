@@ -81,7 +81,7 @@ module instruction_metadata_and_id_management
         input id_t rca_id_retiring,
         input logic rca_retired,
         output logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS],
-        output id_t rca_id_for_rds,
+        output id_t rca_id_for_rds [NUM_WRITE_PORTS],
 
         //Exception
         output logic [31:0] exception_pc
@@ -442,9 +442,8 @@ module instruction_metadata_and_id_management
     end
 
     always_comb begin
-        rca_id_for_rds = '{default: 1};
         for(int i = 0; i < NUM_WRITE_PORTS; i++)
-            rca_id_for_rds = rca_id_for_rds & rd_to_id_table[rca_retired_rd_addrs[i]]; //all IDs should be the same and the result should be the same due to idempotence
+            rca_id_for_rds[i] = rd_to_id_table[rca_retired_rd_addrs[i]];
     end
     //Exception Support
      generate if (ENABLE_M_MODE) begin

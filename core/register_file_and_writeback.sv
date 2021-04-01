@@ -44,7 +44,7 @@ module register_file_and_writeback
         input id_t id_for_rd [COMMIT_PORTS],
 
         input logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS],
-        input id_t rca_id_for_rds,
+        input id_t rca_id_for_rds [NUM_WRITE_PORTS],
 
         //Writeback
         unit_writeback_interface.wb unit_wb[NUM_WB_UNITS],
@@ -219,7 +219,7 @@ module register_file_and_writeback
     logic rca_update_lvt [NUM_WRITE_PORTS];
     always_comb begin
         for(int i = 0; i < NUM_WRITE_PORTS; i++) 
-            rca_update_lvt[i] = rca_retired & (rca_id_for_rds == rca_id_retiring) & ~(retired[0] & retired_rd_addr[0] == rca_retired_rd_addrs[i]);
+            rca_update_lvt[i] = rca_retired & (rca_id_for_rds[i] == rca_id_retiring) & ~(retired[0] & retired_rd_addr[0] == rca_retired_rd_addrs[i]);
     end
 
     regfile_bank_sel #(.WRITE_PORTS(NUM_WRITE_PORTS), .LOG2_WRITE_PORTS($clog2(NUM_WRITE_PORTS))) rca_regfile_lvt (

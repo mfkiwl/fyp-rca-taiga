@@ -154,7 +154,7 @@ module taiga (
     logic rca_retired;
 
     logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS];
-    id_t rca_id_for_rds;
+    id_t rca_id_for_rds [NUM_WRITE_PORTS];
 
     rca_writeback_interface rca_wb;
 
