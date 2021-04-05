@@ -45,7 +45,14 @@ module rca_config_regs (
     
     //Write interface - uses address from read interface
     input rca_result_mux_wr_en,
-    input [$clog2(GRID_NUM_ROWS)-1:0] new_rca_result_mux_sel
+    input [$clog2(GRID_NUM_ROWS)-1:0] new_rca_result_mux_sel,
+
+    //Reg file to store which IO (input) unit is associated with which accelerator - for data_valid signal generation
+    //Uses rca_sel signal from above
+    output [GRID_NUM_ROWS-1:0] curr_rca_io_inp_use,
+
+    input rca_io_inp_use_wr_en,
+    input [GRID_NUM_ROWS-1:0] new_rca_io_inp_use
 );
 
     logic [4:0] [NUM_READ_PORTS-1:0] cpu_src_reg_addrs [NUM_RCAS]; 
@@ -57,6 +64,8 @@ module rca_config_regs (
 
     typedef logic [$clog2(GRID_NUM_ROWS)-1:0] rca_result_mux_sel_t [NUM_WRITE_PORTS];
     rca_result_mux_sel_t rca_result_mux_sels [NUM_RCAS];
+
+    logic [GRID_NUM_ROWS-1:0] rca_io_inp_use [NUM_RCAS];
 
     // Implementation - Reg file to store which of the CPU regs to read from and write to
     initial begin
@@ -121,5 +130,13 @@ module rca_config_regs (
     always_comb begin
         for (int i = 0; i < NUM_WRITE_PORTS; i++)
             curr_rca_result_mux_sel[i] = rca_result_mux_sels[rca_sel][i];
-    end    
+    end
+
+    //Implementation - Reg file to store which IO (input) unit is associated with which accelerator
+    initial rca_io_inp_use = '{default: '0};
+
+    always_ff @(posedge clk) begin
+        if (rst) rca_io_inp_use = '{default: '0};
+        else if (rca_io_inp_use_wr_en) rca_io_inp_use[rca_sel] <= new_rca_io_inp_use;
+    end
 endmodule

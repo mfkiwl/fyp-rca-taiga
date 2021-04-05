@@ -84,7 +84,8 @@ package riscv_types;
         CPU_REG_CONFIG_fn3 = 3'b001,
         GRID_MUX_CONFIG_fn3 = 3'b010,
         IO_MUX_CONFIG_fn3 = 3'b011,
-        RESULT_MUX_CONFIG_fn3 = 3'b100
+        RESULT_MUX_CONFIG_fn3 = 3'b100,
+        IO_USE_CONFIG_fn3 = 3'b101
     } rca_fn3_t;
 
     typedef enum logic [6:0] {

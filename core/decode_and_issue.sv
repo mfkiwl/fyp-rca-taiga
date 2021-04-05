@@ -104,6 +104,7 @@ module decode_and_issue (
     logic rca_grid_mux_config_instr;
     logic rca_io_mux_config_instr;
     logic rca_result_mux_config_instr;
+    logic rca_io_use_config_instr;
 
     logic [4:0] rs1_addr;
     logic [4:0] rs2_addr;
@@ -177,12 +178,12 @@ module decode_and_issue (
     assign rca_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) : 1'b0;
     assign rca_use_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == USE_fn3) : 1'b0;
 
-    assign rca_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 inside {CPU_REG_CONFIG_fn3, GRID_MUX_CONFIG_fn3, IO_MUX_CONFIG_fn3, RESULT_MUX_CONFIG_fn3}) : 1'b0;
+    assign rca_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 inside {CPU_REG_CONFIG_fn3, GRID_MUX_CONFIG_fn3, IO_MUX_CONFIG_fn3, RESULT_MUX_CONFIG_fn3, IO_USE_CONFIG_fn3}) : 1'b0;
     assign rca_cpu_reg_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == CPU_REG_CONFIG_fn3) : 1'b0;
     assign rca_grid_mux_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == GRID_MUX_CONFIG_fn3) : 1'b0;
     assign rca_io_mux_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == IO_MUX_CONFIG_fn3) : 1'b0;
     assign rca_result_mux_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == RESULT_MUX_CONFIG_fn3) : 1'b0;
-            
+    assign rca_io_use_config_instr = (USE_RCA == 1) ? (opcode_trim == RCA_T) && (fn3 == IO_USE_CONFIG_fn3) : 1'b0;
 
     always_ff @(posedge clk) begin
         if (rst | gc_fetch_flush)
@@ -265,6 +266,9 @@ module decode_and_issue (
         assign rca_inputs.rca_result_mux_config_instr = rca_result_mux_config_instr;
         assign rca_inputs.rca_result_mux_addr = rs_data[RS1][$clog2(NUM_WRITE_PORTS)-1:0];
         assign rca_inputs.new_rca_result_mux_sel = rs_data[RS2][$clog2(GRID_NUM_ROWS)-1:0];
+
+        assign rca_inputs.rca_io_use_config_instr = rca_io_use_config_instr;
+        assign rca_inputs.new_rca_io_inp_use = rs_data[RS1][GRID_NUM_ROWS-1:0];
     endgenerate
 
     always_ff @(posedge clk) begin

@@ -14,6 +14,7 @@ module rca_unit(
     logic rca_grid_mux_config_instr_r;
     logic rca_io_mux_config_instr_r;
     logic rca_result_mux_config_instr_r;
+    logic rca_io_use_config_instr_r;
 
     //Signals delayed by 1 clock cycle
     always_ff @(posedge clk) begin 
@@ -21,6 +22,7 @@ module rca_unit(
         rca_grid_mux_config_instr_r <= rca_inputs.rca_grid_mux_config_instr;
         rca_io_mux_config_instr_r <= rca_inputs.rca_io_mux_config_instr;
         rca_result_mux_config_instr_r <= rca_inputs.rca_result_mux_config_instr;
+        rca_io_use_config_instr_r <= rca_inputs.rca_io_use_config_instr;
     end
 
     logic [$clog2(GRID_MUX_INPUTS)-1:0] curr_grid_mux_sel;
@@ -50,7 +52,10 @@ module rca_unit(
 
         .rca_result_mux_addr(rca_inputs.rca_result_mux_addr),
         .rca_result_mux_wr_en(rca_result_mux_config_instr_r && issue.new_request),
-        .new_rca_result_mux_sel(rca_inputs.new_rca_result_mux_sel)
+        .new_rca_result_mux_sel(rca_inputs.new_rca_result_mux_sel),
+
+        .rca_io_inp_use_wr_en(rca_io_use_config_instr_r && issue.new_request),
+        .new_rca_io_inp_use(rca_inputs.new_rca_io_inp_use)
     );
 
     //stub module for later implementation of RCAs
