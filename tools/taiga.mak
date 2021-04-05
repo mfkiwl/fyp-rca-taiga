@@ -9,7 +9,7 @@ TAIGA_INCLUDED_SIM_SRCS = $(addprefix $(VERILATOR_DIR)/, taiga_sim.cc AXI_DDR_si
 
 
 #Tracing: Set to True or False
-TRACE_ENABLE?=False
+TRACE_ENABLE?=True
 
 
 #Simulation Binary Name
@@ -56,7 +56,8 @@ VERILATOR_LINT_IGNORE= -Wno-LITENDIAN -Wno-SYMRSVDWORD
 ifeq ($(TRACE_ENABLE), True)
 	VERILATOR_CFLAGS =  --trace --trace-structs --CFLAGS "$(CFLAGS)  -D TRACE_ON"
 else
-	VERILATOR_CFLAGS =   --CFLAGS  "$(CFLAGS)"
+	VERILATOR_CFLAGS =  --trace --trace-structs --CFLAGS "$(CFLAGS)  -D TRACE_ON"
+	#VERILATOR_CFLAGS =   --CFLAGS  "$(CFLAGS)"
 endif
 
 VERILATOR_LINT_IGNORE= -Wno-LITENDIAN -Wno-SYMRSVDWORD
@@ -83,6 +84,7 @@ lint-full:
 
 #Build Taiga Sim
 $(TAIGA_SIM): $(TAIGA_HW_SRCS) $(TAIGA_SIM_SRCS)
+	echo $(VERILATOR_CFLAGS)
 	mkdir -p $(TAIGA_SIM_DIR)
 	verilator --cc --exe --Mdir $(TAIGA_SIM_DIR) -DENABLE_SIMULATION_ASSERTIONS --assert \
 		-o taiga-sim \

@@ -51,7 +51,7 @@ module register_file
 
     initial register_file = '{default: 0};
     always_ff @ (posedge clk) begin
-        if (commit)
+        if (commit & (|rd_addr)) //ensures writes are only to registers which aren't the zero register
             register_file[rd_addr] <= new_data;
     end
     always_comb begin
@@ -60,10 +60,10 @@ module register_file
     end
 
     ////////////////////////////////////////////////////
-    //Assertions
-    write_to_zero_reg_assertion:
-        assert property (@(posedge clk) disable iff (rst) !(commit & rd_addr == 0))
-        else $error("Write to zero reg occured!");
+    //Assertions - //Disabled with hardware mechanism above ensuring zero register isn't written to
+    // write_to_zero_reg_assertion:
+    //     assert property (@(posedge clk) disable iff (rst) !(commit & rd_addr == 0))
+    //     else $error("Write to zero reg occured!");
 
     ////////////////////////////////////////////////////
     //Simulation Only

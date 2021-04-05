@@ -110,12 +110,17 @@ module  illegal_instruction_checker
     localparam [31:0] SFENCE_VMA = 32'b0001001??????????000000001110011;
     localparam [31:0] WFI = 32'b00010000010100000000000001110011;
 
+    //RCA
+    localparam [31:0] RCA0_USE = 32'b0000000??????????000?????0101011;
+    localparam [31:0] RCA0_CONFIG = 32'b0000000??????????001?????0101011;
+
     logic base_legal;
     logic mul_legal;
     logic div_legal;
     logic amo_legal;
     logic machine_legal;
     logic supervisor_legal;
+    logic rca_legal;
     ////////////////////////////////////////////////////
     //Implementation
 
@@ -149,13 +154,18 @@ module  illegal_instruction_checker
         SRET, SFENCE_VMA, WFI
     };
 
+    assign rca_legal = instruction inside {
+        RCA0_USE, RCA0_CONFIG
+    };
+
     assign illegal_instruction = ~(
         base_legal |
         (USE_MUL & mul_legal) |
         (USE_DIV & div_legal) |
         (USE_AMO & amo_legal) |
         (ENABLE_M_MODE & machine_legal) |
-        (ENABLE_S_MODE & supervisor_legal)
+        (ENABLE_S_MODE & supervisor_legal)|
+        (USE_RCA & rca_legal)
     );
 
 endmodule

@@ -67,6 +67,8 @@ module taiga (
     mul_inputs_t mul_inputs;
     div_inputs_t div_inputs;
     gc_inputs_t gc_inputs;
+    rca_inputs_t rca_inputs;
+    rca_config_t rca_config_regs_op;
 
     unit_issue_interface unit_issue [NUM_UNITS-1:0]();
     logic alu_issued;
@@ -147,6 +149,14 @@ module taiga (
     logic retired [COMMIT_PORTS];
     logic [4:0] retired_rd_addr [COMMIT_PORTS];
     id_t id_for_rd [COMMIT_PORTS];
+    //RCA WB
+    id_t rca_id_retiring;
+    logic rca_retired;
+
+    logic [4:0] rca_retired_rd_addrs [NUM_WRITE_PORTS];
+    id_t rca_id_for_rds [NUM_WRITE_PORTS];
+
+    rca_writeback_interface rca_wb;
 
     //Trace Interface Signals
     logic tr_operand_stall;
@@ -243,9 +253,10 @@ module taiga (
             div_unit div_unit_block (.*, .issue(unit_issue[DIV_UNIT_WB_ID]), .wb(unit_wb[DIV_UNIT_WB_ID]));
     endgenerate
 
-    generate if (USE_TESTADDER)
-        taiga_testAdder taiga_testAdder_block (.*, .issue(unit_issue[TESTADDER_UNIT_WB_ID]), .wb(unit_wb[TESTADDER_UNIT_WB_ID]));
+    generate if (USE_RCA)
+        rca_unit rca (.*, .issue(unit_issue[RCA_UNIT_WB_ID]));
     endgenerate
+
 
     ////////////////////////////////////////////////////
     //End of Implementation

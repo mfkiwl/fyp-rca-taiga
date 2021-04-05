@@ -23,6 +23,7 @@
 package taiga_types;
     import taiga_config::*;
     import riscv_types::*;
+    import rca_config::*;
 
     localparam MAX_COMPLETE_COUNT = 3 + COMMIT_PORTS; //Branch + Store + System + COMMIT_PORTS
 
@@ -96,6 +97,10 @@ package taiga_types;
         id_t id;
         logic stage_valid;
         logic addr_valid;
+
+        logic rca_use_instr;
+        logic rca_config_instr;
+        logic [4:0][NUM_WRITE_PORTS-1:0] rca_rd_addrs ;
     } issue_packet_t;
 
     typedef struct packed{
@@ -269,5 +274,29 @@ package taiga_types;
         logic [XLEN-1:0] rs1;
         logic [XLEN-1:0] rs2;
     } adder_inputs_t;
+
+    typedef struct packed{
+        //Select between RCA use and RCA config
+        logic rca_config_instr; //0 for use, 1 for config
+
+        //Interface for RCA use
+        logic [XLEN-1:0] rs1;
+        logic [XLEN-1:0] rs2;
+        logic [XLEN-1:0] rs3;
+        logic [XLEN-1:0] rs4;
+        logic [XLEN-1:0] rs5;
+        logic [$clog2(NUM_RCAS)-1:0] rca_sel;
+
+        //Interface for RCA config
+        logic [$clog2(NUM_READ_PORTS)-1:0] w_port_sel;
+        logic w_src_dest_port;
+        logic [4:0] w_reg_addr;
+    } rca_inputs_t;
+
+    //RCA Config Outputs
+    typedef struct packed{        
+        logic [4:0] [NUM_READ_PORTS-1:0] rca_src_reg_addrs ;
+        logic [4:0] [NUM_WRITE_PORTS-1:0] rca_dest_reg_addrs; 
+    } rca_config_t;
 
 endpackage
