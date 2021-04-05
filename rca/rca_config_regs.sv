@@ -9,7 +9,7 @@ module rca_config_regs (
 
     //Reg file to store which of the CPU regs to read from and write to
     //Read interface
-    input [$clog2(NUM_RCAS)-1:-0] rca_sel,
+    input [$clog2(NUM_RCAS)-1:0] rca_sel,
     
     output logic [4:0] [NUM_READ_PORTS-1:0] rca_cpu_src_reg_addrs,
     output logic [4:0] [NUM_WRITE_PORTS-1:0] rca_cpu_dest_reg_addrs,
@@ -22,7 +22,7 @@ module rca_config_regs (
 
     //Reg file to store grid crossbar configurations
     //Read interface
-    input [$clog2(NUM_GRID_MUXES)-1:0] grid_mux_addr;
+    input [$clog2(NUM_GRID_MUXES)-1:0] grid_mux_addr,
     output [$clog2(GRID_MUX_INPUTS)-1:0] curr_grid_mux_sel,
     
     //Write interface - uses address from read interface
@@ -49,13 +49,14 @@ module rca_config_regs (
 );
 
     logic [4:0] [NUM_READ_PORTS-1:0] cpu_src_reg_addrs [NUM_RCAS]; 
-    logic [4:0] [NUM_READ_PORTS-1:0] cpu_dest_reg_addrs [NUM_RCAS];    
+    logic [4:0] [NUM_WRITE_PORTS-1:0] cpu_dest_reg_addrs [NUM_RCAS];    
 
     logic [$clog2(GRID_MUX_INPUTS)-1:0] grid_mux_sels [NUM_GRID_MUXES];
 
     logic [$clog2(IO_UNIT_MUX_INPUTS)-1:0] io_unit_mux_sels [GRID_NUM_ROWS];
 
-    logic [$clog2(GRID_NUM_ROWS)-1:0] rca_result_mux_sels [NUM_WRITE_PORTS][NUM_RCAS];
+    typedef logic [$clog2(GRID_NUM_ROWS)-1:0] rca_result_mux_sel_t [NUM_WRITE_PORTS];
+    rca_result_mux_sel_t rca_result_mux_sels [NUM_RCAS];
 
     // Implementation - Reg file to store which of the CPU regs to read from and write to
     initial begin
@@ -99,11 +100,11 @@ module rca_config_regs (
 
     assign curr_io_mux_sel = io_unit_mux_sels[io_mux_addr];
 
-    //Implementation - Reg file to store rca result crossbar configuration (same as above)
+    //Implementation - Reg file to store rca result crossbar configuration
     initial begin
         for (int i = 0; i < NUM_RCAS; i++) begin
             for (int j = 0; j < NUM_WRITE_PORTS; j++)
-                rca_result_mux_sels = 0;
+                rca_result_mux_sels[i][j] = 0;
         end
     end
 
@@ -111,12 +112,14 @@ module rca_config_regs (
         if (rst) begin
             for (int i = 0; i < NUM_RCAS; i++) begin
                 for (int j = 0; j < NUM_WRITE_PORTS; j++)
-                    rca_result_mux_sels = 0;
+                    rca_result_mux_sels[i][j] = 0;
             end
         end     
         else if (rca_result_mux_wr_en) rca_result_mux_sels[rca_sel][rca_result_mux_addr] <= new_rca_result_mux_sel;
     end
 
-    assign curr_rca_result_mux_sel = rca_result_mux_sels[rca_sel];
-    
+    always_comb begin
+        for (int i = 0; i < NUM_WRITE_PORTS; i++)
+            curr_rca_result_mux_sel[i] = rca_result_mux_sels[rca_sel][i];
+    end    
 endmodule

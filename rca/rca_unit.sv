@@ -20,7 +20,7 @@ module rca_unit(
         rca_cpu_reg_config_instr_r <= rca_inputs.rca_cpu_reg_config_instr;
         rca_grid_mux_config_instr_r <= rca_inputs.rca_grid_mux_config_instr;
         rca_io_mux_config_instr_r <= rca_inputs.rca_io_mux_config_instr;
-        rca_result_mux_config_instr_r <= rca_result_mux_config_instr;
+        rca_result_mux_config_instr_r <= rca_inputs.rca_result_mux_config_instr;
     end
 
     logic [$clog2(GRID_MUX_INPUTS)-1:0] curr_grid_mux_sel;
@@ -57,21 +57,14 @@ module rca_unit(
     assign issue.ready = 1'b1;
     
     always_ff @(posedge clk) begin
-        if (rca_inputs.rca_config_instr && issue.new_request) begin
-            // wb.done <= 1;
-            // wb.id <= issue.id;
-            // wb.rd <= rca_inputs.rs1;
+        if (issue.new_request && ~rca_inputs.rca_use_instr) begin
 
             rca_wb.id <= issue.id;
             rca_wb.done <= 1;
             for(int i = 0; i < NUM_WRITE_PORTS; i++)
                 rca_wb.rd[i] <= 0;
         end
-        else if (~rca_inputs.rca_config_instr && issue.new_request) begin
-            // wb.done <= 1;
-            // wb.id <= issue.id;
-            // wb.rd <= rca_inputs.rs1 + rca_inputs.rs2 + rca_inputs.rs3 + rca_inputs.rs4 + rca_inputs.rs5; 
-
+        else if (rca_inputs.rca_use_instr && issue.new_request) begin
             rca_wb.done <= 1;
             rca_wb.id <= issue.id;
             //Reverse input register order - just for testing
