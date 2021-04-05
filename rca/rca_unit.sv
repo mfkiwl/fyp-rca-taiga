@@ -10,20 +10,47 @@ module rca_unit(
     output rca_config_t rca_config_regs_op,
     rca_writeback_interface.unit rca_wb
 );
-    logic rca_config_instr_r;
-    always_ff @(posedge clk) rca_config_instr_r <= rca_inputs.rca_config_instr;
+    logic rca_cpu_reg_config_instr_r;
+    logic rca_grid_mux_config_instr_r;
+    logic rca_io_mux_config_instr_r;
+    logic rca_result_mux_config_instr_r;
+
+    //Signals delayed by 1 clock cycle
+    always_ff @(posedge clk) begin 
+        rca_cpu_reg_config_instr_r <= rca_inputs.rca_cpu_reg_config_instr;
+        rca_grid_mux_config_instr_r <= rca_inputs.rca_grid_mux_config_instr;
+        rca_io_mux_config_instr_r <= rca_inputs.rca_io_mux_config_instr;
+        rca_result_mux_config_instr_r <= rca_result_mux_config_instr;
+    end
+
+    logic [$clog2(GRID_MUX_INPUTS)-1:0] curr_grid_mux_sel;
+    logic [$clog2(IO_UNIT_MUX_INPUTS)-1:0] curr_io_mux_sel;
+    logic [$clog2(GRID_NUM_ROWS)-1:0] curr_rca_result_mux_sel [NUM_WRITE_PORTS];
 
     rca_config_regs rca_config_regfile(
+        .*,
         .clk(clk),
         .rst(rst),
         .rca_sel(rca_inputs.rca_sel),
-        .rca_src_reg_addrs(rca_config_regs_op.rca_src_reg_addrs),
-        .rca_dest_reg_addrs(rca_config_regs_op.rca_dest_reg_addrs),
+        .rca_cpu_src_reg_addrs(rca_config_regs_op.rca_cpu_src_reg_addrs),
+        .rca_cpu_dest_reg_addrs(rca_config_regs_op.rca_cpu_dest_reg_addrs),
 
-        .wr_en(rca_config_instr_r && issue.new_request),
-        .w_port_sel(rca_inputs.w_port_sel),
-        .w_src_dest_port(rca_inputs.w_src_dest_port),
-        .w_reg_addr(rca_inputs.w_reg_addr)
+        .cpu_reg_addr_wr_en(rca_cpu_reg_config_instr_r && issue.new_request),
+        .cpu_port_sel(rca_inputs.cpu_port_sel),
+        .cpu_src_dest_port(rca_inputs.cpu_src_dest_port),
+        .cpu_reg_addr(rca_inputs.cpu_reg_addr),
+
+        .grid_mux_addr(rca_inputs.grid_mux_addr),
+        .grid_mux_wr_en(rca_grid_mux_config_instr_r && issue.new_request),
+        .new_grid_mux_sel(rca_inputs.new_grid_mux_sel),
+
+        .io_mux_addr(rca_inputs.io_mux_addr),
+        .io_mux_wr_en(rca_io_mux_config_instr_r && issue.new_request),
+        .new_io_mux_sel(rca_inputs.new_io_mux_sel),
+
+        .rca_result_mux_addr(rca_inputs.rca_result_mux_addr),
+        .rca_result_mux_wr_en(rca_result_mux_config_instr_r && issue.new_request),
+        .new_rca_result_mux_sel(rca_inputs.new_rca_result_mux_sel)
     );
 
     //stub module for later implementation of RCAs
@@ -65,7 +92,5 @@ module rca_unit(
                 rca_wb.rd[i] <= 0;
         end
     end
-
-    //TODO: Implement rca_wb interface, + interface for implementing an instruction without rd
     
 endmodule

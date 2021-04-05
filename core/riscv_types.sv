@@ -76,12 +76,15 @@ package riscv_types;
     } opcodes_trimmed_t;
 
     typedef enum logic [6:0] {
-        RCA_fn7 = 7'b1000000
+        RCA_fn7 = 7'b1000000 //fn7 used to select accelerators
     } rca_fn7_t;
 
     typedef enum logic [2:0] {
         USE_fn3 = 3'b000,
-        CONFIG_fn3 = 3'b001
+        CPU_REG_CONFIG_fn3 = 3'b001,
+        GRID_MUX_CONFIG_fn3 = 3'b010,
+        IO_MUX_CONFIG_fn3 = 3'b011,
+        RESULT_MUX_CONFIG_fn3 = 3'b100
     } rca_fn3_t;
 
     typedef enum logic [6:0] {

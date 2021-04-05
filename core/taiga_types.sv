@@ -276,8 +276,14 @@ package taiga_types;
     } adder_inputs_t;
 
     typedef struct packed{
-        //Select between RCA use and RCA config
-        logic rca_config_instr; //0 for use, 1 for config
+        //Select between RCA use and RCA config instrs
+        logic rca_cpu_reg_config_instr; //0 for anything else, 1 for cpu reg config
+        
+        logic rca_grid_mux_config_instr; //0 for anything else, 1 for grid mux config
+        
+        logic rca_io_mux_config_instr; 
+
+        logic rca_result_mux_config_instr;
 
         //Interface for RCA use
         logic [XLEN-1:0] rs1;
@@ -287,16 +293,29 @@ package taiga_types;
         logic [XLEN-1:0] rs5;
         logic [$clog2(NUM_RCAS)-1:0] rca_sel;
 
-        //Interface for RCA config
-        logic [$clog2(NUM_READ_PORTS)-1:0] w_port_sel;
-        logic w_src_dest_port;
-        logic [4:0] w_reg_addr;
+        //Interface for RCA CPU reg address storage
+        logic [$clog2(NUM_READ_PORTS)-1:0] cpu_port_sel;
+        logic cpu_src_dest_port;
+        logic [4:0] cpu_reg_addr;
+
+        //Interface for PR grid MUX sel storage
+        logic [$clog2(NUM_GRID_MUXES)-1:0] grid_mux_addr;
+        logic [$clog2(GRID_MUX_INPUTS)-1:0] new_grid_mux_sel;
+
+        //Interface for PR grid IO unit MUX sel storage
+        logic [$clog2(GRID_NUM_ROWS)-1:0] io_mux_addr;
+        logic [$clog2(IO_UNIT_MUX_INPUTS)-1:0] new_io_mux_sel;
+
+        //Interface for PR Grid Result MUX sel storage
+        logic [$clog2(NUM_WRITE_PORTS)-1:0] rca_result_mux_addr;
+        logic [$clog2(GRID_NUM_ROWS)-1:0] new_rca_result_mux_sel;
+
     } rca_inputs_t;
 
     //RCA Config Outputs
     typedef struct packed{        
-        logic [4:0] [NUM_READ_PORTS-1:0] rca_src_reg_addrs ;
-        logic [4:0] [NUM_WRITE_PORTS-1:0] rca_dest_reg_addrs; 
+        logic [4:0] [NUM_READ_PORTS-1:0] rca_cpu_src_reg_addrs ;
+        logic [4:0] [NUM_WRITE_PORTS-1:0] rca_cpu_dest_reg_addrs; 
     } rca_config_t;
 
 endpackage
