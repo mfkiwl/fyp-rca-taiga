@@ -28,6 +28,7 @@ module rca_unit(
     logic [$clog2(GRID_MUX_INPUTS)-1:0] curr_grid_mux_sel;
     logic [$clog2(IO_UNIT_MUX_INPUTS)-1:0] curr_io_mux_sel;
     logic [$clog2(GRID_NUM_ROWS)-1:0] curr_rca_result_mux_sel [NUM_WRITE_PORTS];
+    logic [GRID_NUM_ROWS-1:0] curr_rca_io_inp_use;
 
     rca_config_regs rca_config_regfile(
         .*,
